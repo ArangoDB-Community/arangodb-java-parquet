@@ -1,8 +1,8 @@
-package com.arangodb;
+package com.arangodb.parquet;
 
+import com.arangodb.ArangoCollection;
 import com.arangodb.async.ArangoCollectionAsync;
-import com.arangodb.mapping.ArangoJack;
-import com.arangodb.serde.GenericRecordJsonEncoder;
+import com.arangodb.parquet.serde.GenericRecordJsonEncoder;
 import org.apache.avro.LogicalType;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;

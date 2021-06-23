@@ -1,4 +1,4 @@
-package com.arangodb.serde;
+package com.arangodb.parquet.serde;
 
 
 import org.apache.avro.LogicalType;

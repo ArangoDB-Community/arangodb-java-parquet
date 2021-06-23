@@ -1,5 +1,8 @@
-package com.arangodb;
+package com.arangodb.parquet;
 
+import com.arangodb.ArangoCollection;
+import com.arangodb.ArangoDB;
+import com.arangodb.ArangoDatabase;
 import com.arangodb.async.ArangoCollectionAsync;
 import com.arangodb.async.ArangoDBAsync;
 import com.arangodb.async.ArangoDatabaseAsync;
