@@ -1,11 +1,8 @@
 package com.arangodb;
 
 import com.arangodb.async.ArangoCollectionAsync;
-import com.arangodb.async.ArangoDBAsync;
-import com.arangodb.async.ArangoDatabaseAsync;
 import com.arangodb.mapping.ArangoJack;
 import com.arangodb.serde.GenericRecordJsonEncoder;
-import com.sun.xml.internal.ws.util.CompletedFuture;
 import org.apache.avro.LogicalType;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
@@ -39,7 +36,7 @@ public class ParquetArangoLoader {
      * <pre>{@code
      *     Map<LogicalType, Function<Object, Object>> converters = new HashMap<>();
      *     converters.put(LogicalTypes.timestampMillis(), t -> {
-     *         Instant instant = (Instant)t;
+     *         Instant instant = (Instant) t;
      *         return DateTimeFormatter.ISO_INSTANT.format(instant);
      *     });
      * }</pre>
@@ -128,30 +125,5 @@ public class ParquetArangoLoader {
         Paths.get(parquetFileString);
 
         return new Path(parquetFileString);
-    }
-
-
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
-        String fp = "/Users/alexgeenen/code/arangodb-java-parquet/src/main/resources/data.parquet";
-
-        ArangoJack arangoJack = new ArangoJack();
-
-        ArangoDB arangoDB = new ArangoDB.Builder().serializer(arangoJack).build();
-        ArangoDatabase database = arangoDB.db("testDB");
-        if (!database.exists()) {
-            database.create();
-        }
-
-        ArangoCollection trafficCol = database.collection("trafficCol");
-
-        ParquetArangoLoader parquetArangoLoader = new ParquetArangoLoader();
-        try {
-            parquetArangoLoader.loadParquetFileIntoArango(fp, trafficCol, true);
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-        System.out.println("Finished Encoding");
-
-        arangoDB.shutdown();
     }
 }
