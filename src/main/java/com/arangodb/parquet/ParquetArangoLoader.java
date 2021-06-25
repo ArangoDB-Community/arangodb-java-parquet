@@ -67,8 +67,7 @@ public class ParquetArangoLoader {
             collection.create();
         }
 
-        GenericRecordJsonEncoder encoder = new GenericRecordJsonEncoder();
-        this.registerEncoderConversions(encoder);
+        GenericRecordJsonEncoder encoder = this.createParquetToJsonEncoder();
 
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(parquetPath, new Configuration())).build();
         GenericRecord nextRecord;
@@ -92,8 +91,7 @@ public class ParquetArangoLoader {
             collection.create().get();
         }
 
-        GenericRecordJsonEncoder encoder = new GenericRecordJsonEncoder();
-        this.registerEncoderConversions(encoder);
+        GenericRecordJsonEncoder encoder = this.createParquetToJsonEncoder();
 
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(parquetPath, new Configuration())).build();
         GenericRecord nextRecord;
@@ -112,6 +110,12 @@ public class ParquetArangoLoader {
 
     public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
         loadParquetFileIntoArangoAsync(parquetLocation, collection, false);
+    }
+
+    private GenericRecordJsonEncoder createParquetToJsonEncoder() {
+        GenericRecordJsonEncoder encoder = new GenericRecordJsonEncoder();
+        this.registerEncoderConversions(encoder);
+        return encoder;
     }
 
     private void registerEncoderConversions(GenericRecordJsonEncoder encoder) {
