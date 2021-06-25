@@ -125,6 +125,15 @@ public class ParquetArangoLoaderTest {
     }
 
     @Test
+    public void canLoadParquetSyncSmallerBatchSize() throws IOException {
+        ArangoCollection col = db.collection(TEST_COLLECTION);
+
+        ParquetArangoLoader loader = new ParquetArangoLoader();
+        loader.loadParquetFileIntoArango(this.parquetFilePath, col, true, 3);
+        assertThat(col.count().getCount(), is(numDocs));
+    }
+
+    @Test
     public void canLoadParquetAsyncWithOverwrite() throws IOException, ExecutionException, InterruptedException {
         ArangoCollectionAsync col = dbAsync.collection(TEST_COLLECTION);
 
@@ -141,5 +150,14 @@ public class ParquetArangoLoaderTest {
         loader.loadParquetFileIntoArangoAsync(this.parquetFilePath, col, true);
         loader.loadParquetFileIntoArangoAsync(this.parquetFilePath, col);
         assertThat(col.count().get().getCount(), is(numDocs*2));
+    }
+
+    @Test
+    public void canLoadParquetAsyncSmallerBatchSize() throws IOException, ExecutionException, InterruptedException {
+        ArangoCollectionAsync col = dbAsync.collection(TEST_COLLECTION);
+
+        ParquetArangoLoader loader = new ParquetArangoLoader();
+        loader.loadParquetFileIntoArangoAsync(this.parquetFilePath, col, true, 3);
+        assertThat(col.count().get().getCount(), is(this.numDocs));
     }
 }
