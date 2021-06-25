@@ -66,6 +66,10 @@ public class ParquetArangoLoader {
     }
 
     public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection, boolean overwriteCollection, int batchSize) throws InvalidPathException, IOException {
+        if (batchSize < 1) {
+            throw new IllegalArgumentException("batchSize for document insertion must be at least 1.");
+        }
+
         Path parquetPath = createPath(parquetLocation);
 
         if (!collection.exists()) {
@@ -81,10 +85,20 @@ public class ParquetArangoLoader {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(parquetPath, new Configuration())).build();
         GenericRecord nextRecord;
 
+        List<String> batch = new ArrayList<>(batchSize);
         while ((nextRecord = reader.read()) != null) {
-            String j = encoder.serialize(nextRecord);
-            collection.insertDocument(j);
+            batch.add(encoder.serialize(nextRecord));
+
+            if (batch.size() == batchSize) {
+                collection.insertDocuments(batch);
+                batch.clear();
+            }
         }
+
+        if (batch.size() > 0) {
+            collection.insertDocuments(batch);
+        }
+
         reader.close();
     }
 
