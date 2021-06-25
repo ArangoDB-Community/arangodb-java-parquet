@@ -24,6 +24,7 @@ import java.util.function.Function;
 
 public class ParquetArangoLoader {
     private Map<LogicalType, Function<Object, Object>> converters;
+    private static final int DEFAULT_BATCH_SIZE = 1000;
 
     public ParquetArangoLoader() {
         converters = new HashMap<>();
@@ -53,10 +54,18 @@ public class ParquetArangoLoader {
     }
 
     public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection) throws InvalidPathException, IOException {
-        loadParquetFileIntoArango(parquetLocation, collection, false);
+        loadParquetFileIntoArango(parquetLocation, collection, false, DEFAULT_BATCH_SIZE);
+    }
+
+    public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection, int batchSize) throws InvalidPathException, IOException {
+        loadParquetFileIntoArango(parquetLocation, collection, false, batchSize);
     }
 
     public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection, boolean overwriteCollection) throws InvalidPathException, IOException {
+        loadParquetFileIntoArango(parquetLocation, collection, overwriteCollection, DEFAULT_BATCH_SIZE);
+    }
+
+    public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection, boolean overwriteCollection, int batchSize) throws InvalidPathException, IOException {
         Path parquetPath = createPath(parquetLocation);
 
         if (!collection.exists()) {
@@ -79,8 +88,19 @@ public class ParquetArangoLoader {
         reader.close();
     }
 
+    public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
+        loadParquetFileIntoArangoAsync(parquetLocation, collection, false, DEFAULT_BATCH_SIZE);
+    }
+
+    public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection, int batchSize) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
+        loadParquetFileIntoArangoAsync(parquetLocation, collection, false, batchSize);
+    }
 
     public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection, boolean overwriteCollection) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
+        loadParquetFileIntoArangoAsync(parquetLocation, collection, overwriteCollection, DEFAULT_BATCH_SIZE);
+    }
+
+    public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection, boolean overwriteCollection, int batchSize) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
         Path parquetPath = createPath(parquetLocation);
 
         if (!collection.exists().get()) {
@@ -106,10 +126,6 @@ public class ParquetArangoLoader {
         for (CompletableFuture f : insertions) {
             f.get();
         }
-    }
-
-    public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
-        loadParquetFileIntoArangoAsync(parquetLocation, collection, false);
     }
 
     private GenericRecordJsonEncoder createParquetToJsonEncoder() {
