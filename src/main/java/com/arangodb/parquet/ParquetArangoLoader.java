@@ -29,7 +29,7 @@ import java.util.stream.StreamSupport;
 public class ParquetArangoLoader {
     private Map<LogicalType, Function<Object, Object>> converters;
     private static final int DEFAULT_BATCH_SIZE = 1000;
-    private static final int MAX_PENDING_REQUESTS = 50;
+    public static final int DEFAULT_MAX_PENDING_REQUESTS = 10;
 
     public ParquetArangoLoader() {
         converters = new HashMap<>();
@@ -107,21 +107,66 @@ public class ParquetArangoLoader {
         reader.close();
     }
 
+    /**
+     * Load the contents of a Parquet File into an ArangoDB Collection asynchronously.
+     * @param parquetLocation Location of the parquet file on the filesystem.
+     * @param collection the collection to be written to
+     * @throws ExecutionException
+     * @throws InterruptedException
+     * @throws InvalidPathException
+     * @throws IOException
+     */
     public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
-        loadParquetFileIntoArangoAsync(parquetLocation, collection, false, DEFAULT_BATCH_SIZE);
+        loadParquetFileIntoArangoAsync(parquetLocation, collection, false, DEFAULT_BATCH_SIZE, DEFAULT_MAX_PENDING_REQUESTS);
     }
 
+
+    /**
+     * Load the contents of a Parquet File into an ArangoDB Collection asynchronously.
+     * @param parquetLocation Location of the parquet file on the filesystem.
+     * @param collection the collection to be written to
+     * @param batchSize Number of rows that should be inserted simultaneously
+     * @throws ExecutionException
+     * @throws InterruptedException
+     * @throws InvalidPathException
+     * @throws IOException
+     */
     public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection, int batchSize) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
-        loadParquetFileIntoArangoAsync(parquetLocation, collection, false, batchSize);
+        loadParquetFileIntoArangoAsync(parquetLocation, collection, false, batchSize, DEFAULT_MAX_PENDING_REQUESTS);
     }
 
+    /**
+     * Load the contents of a Parquet File into an ArangoDB Collection asynchronously.
+     * @param parquetLocation Location of the parquet file on the filesystem.
+     * @param collection the collection to be written to
+     * @param overwriteCollection This is a flag that will clear the collection's current contents before loading the parquet file's rows.
+     * @throws ExecutionException
+     * @throws InterruptedException
+     * @throws InvalidPathException
+     * @throws IOException
+     */
     public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection, boolean overwriteCollection) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
-        loadParquetFileIntoArangoAsync(parquetLocation, collection, overwriteCollection, DEFAULT_BATCH_SIZE);
+        loadParquetFileIntoArangoAsync(parquetLocation, collection, overwriteCollection, DEFAULT_BATCH_SIZE, DEFAULT_MAX_PENDING_REQUESTS);
     }
 
-    public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection, boolean overwriteCollection, int batchSize) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
+    /**
+     * Load the contents of a Parquet File into an ArangoDB Collection asynchronously.
+     * @param parquetLocation Location of the parquet file on the filesystem.
+     * @param collection the collection to be written to
+     * @param overwriteCollection This is a flag that will clear the collection's current contents before loading the parquet file's rows.
+     * @param batchSize Number of rows that should be inserted simultaneously
+     * @param maxParallelBatches Maximum number of outstanding insertion requests. e.g. a max value of 10 will mean that a maximum of 10 batches will be requesting insertion into the database at once.
+     * @throws ExecutionException
+     * @throws InterruptedException
+     * @throws InvalidPathException
+     * @throws IOException
+     */
+    public void loadParquetFileIntoArangoAsync(String parquetLocation, ArangoCollectionAsync collection, boolean overwriteCollection, int batchSize, int maxParallelBatches) throws ExecutionException, InterruptedException, InvalidPathException, IOException {
         if (batchSize < 1) {
             throw new IllegalArgumentException("batchSize for document insertion must be at least 1.");
+        }
+        if (maxParallelBatches < 1) {
+            throw new IllegalArgumentException("Max number of parallel for document insertion must be at least 1.");
         }
 
         Path parquetPath = createPath(parquetLocation);
@@ -147,7 +192,7 @@ public class ParquetArangoLoader {
         List<CompletableFuture<MultiDocumentEntity<DocumentCreateEntity<String>>>> insertions = chunks
                 .map(chunk -> {
                     // add backpressure
-                    while (pendingInsertionsCount.get() > MAX_PENDING_REQUESTS) {
+                    while (pendingInsertionsCount.get() > maxParallelBatches) {
                         try {
                             Thread.sleep(10);
                         } catch (InterruptedException e) {

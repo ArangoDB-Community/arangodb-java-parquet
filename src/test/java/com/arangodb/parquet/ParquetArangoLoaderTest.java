@@ -157,7 +157,7 @@ public class ParquetArangoLoaderTest {
         ArangoCollectionAsync col = dbAsync.collection(TEST_COLLECTION);
 
         ParquetArangoLoader loader = new ParquetArangoLoader();
-        loader.loadParquetFileIntoArangoAsync(this.parquetFilePath, col, true, 3);
+        loader.loadParquetFileIntoArangoAsync(this.parquetFilePath, col, true, 3, ParquetArangoLoader.DEFAULT_MAX_PENDING_REQUESTS);
         assertThat(col.count().get().getCount(), is(this.numDocs));
     }
 }
