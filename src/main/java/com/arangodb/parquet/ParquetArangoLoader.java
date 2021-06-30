@@ -3,7 +3,6 @@ package com.arangodb.parquet;
 import com.arangodb.ArangoCollection;
 import com.arangodb.async.ArangoCollectionAsync;
 import com.arangodb.entity.DocumentCreateEntity;
-import com.arangodb.entity.DocumentImportEntity;
 import com.arangodb.entity.MultiDocumentEntity;
 import com.arangodb.parquet.serde.GenericRecordJsonEncoder;
 import org.apache.avro.LogicalType;
@@ -47,29 +46,74 @@ public class ParquetArangoLoader {
      *     });
      * }</pre>
      *
-     *
      * @param logicalTypeConverters
      */
     public ParquetArangoLoader(Map<LogicalType, Function<Object, Object>> logicalTypeConverters) {
         converters = logicalTypeConverters;
     }
 
+    /**
+     * Add a custom type converter mapping if the default Avro toString Mappings aren't complete or producing the desired
+     * results. For example a millisecond timestamp:
+     * <pre>{@code
+     *     Map<LogicalType, Function<Object, Object>> converters = new HashMap<>();
+     *     converters.put(LogicalTypes.timestampMillis(), t -> {
+     *         Instant instant = (Instant) t;
+     *         return DateTimeFormatter.ISO_INSTANT.format(instant);
+     *     });
+     * }</pre>
+     *
+     * @param type
+     * @param mapping
+     */
     public void addTypeConverter(LogicalType type, Function<Object, Object> mapping) {
         converters.put(type, mapping);
     }
 
+    /**
+     * Load the contents of a Parquet File into an ArangoDB Collection synchronously.
+     * @param parquetLocation Location of the parquet file on the filesystem.
+     * @param collection the collection to be written to
+     * @throws InvalidPathException
+     * @throws IOException
+     */
     public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection) throws InvalidPathException, IOException {
         loadParquetFileIntoArango(parquetLocation, collection, false, DEFAULT_BATCH_SIZE);
     }
 
+    /**
+     * Load the contents of a Parquet File into an ArangoDB Collection synchronously.
+     * @param parquetLocation Location of the parquet file on the filesystem.
+     * @param collection the collection to be written to
+     * @param batchSize Number of rows that should be inserted simultaneously in a batch insert.
+     * @throws InvalidPathException
+     * @throws IOException
+     */
     public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection, int batchSize) throws InvalidPathException, IOException {
         loadParquetFileIntoArango(parquetLocation, collection, false, batchSize);
     }
 
+    /**
+     * Load the contents of a Parquet File into an ArangoDB Collection synchronously.
+     * @param parquetLocation Location of the parquet file on the filesystem.
+     * @param collection the collection to be written to
+     * @param overwriteCollection This is a flag that will clear the collection's current contents before loading the parquet file's rows.
+     * @throws InvalidPathException
+     * @throws IOException
+     */
     public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection, boolean overwriteCollection) throws InvalidPathException, IOException {
         loadParquetFileIntoArango(parquetLocation, collection, overwriteCollection, DEFAULT_BATCH_SIZE);
     }
 
+    /**
+     * Load the contents of a Parquet File into an ArangoDB Collection synchronously.
+     * @param parquetLocation Location of the parquet file on the filesystem.
+     * @param collection the collection to be written to
+     * @param overwriteCollection This is a flag that will clear the collection's current contents before loading the parquet file's rows.
+     * @param batchSize Number of rows that should be inserted simultaneously in a batch insert.
+     * @throws InvalidPathException
+     * @throws IOException
+     */
     public void loadParquetFileIntoArango(String parquetLocation, ArangoCollection collection, boolean overwriteCollection, int batchSize) throws InvalidPathException, IOException {
         if (batchSize < 1) {
             throw new IllegalArgumentException("batchSize for document insertion must be at least 1.");
@@ -125,7 +169,7 @@ public class ParquetArangoLoader {
      * Load the contents of a Parquet File into an ArangoDB Collection asynchronously.
      * @param parquetLocation Location of the parquet file on the filesystem.
      * @param collection the collection to be written to
-     * @param batchSize Number of rows that should be inserted simultaneously
+     * @param batchSize Number of rows that should be inserted simultaneously in a batch insert
      * @throws ExecutionException
      * @throws InterruptedException
      * @throws InvalidPathException
@@ -154,7 +198,7 @@ public class ParquetArangoLoader {
      * @param parquetLocation Location of the parquet file on the filesystem.
      * @param collection the collection to be written to
      * @param overwriteCollection This is a flag that will clear the collection's current contents before loading the parquet file's rows.
-     * @param batchSize Number of rows that should be inserted simultaneously
+     * @param batchSize Number of rows that should be inserted simultaneously in a batch insert
      * @param maxParallelBatches Maximum number of outstanding insertion requests. e.g. a max value of 10 will mean that a maximum of 10 batches will be requesting insertion into the database at once.
      * @throws ExecutionException
      * @throws InterruptedException
