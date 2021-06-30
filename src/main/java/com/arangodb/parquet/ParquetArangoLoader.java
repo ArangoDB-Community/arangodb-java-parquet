@@ -168,15 +168,10 @@ public class ParquetArangoLoader {
                 .collect(Collectors.toList());
 
         reader.close();
-        insertions.forEach(cf -> {
-            try {
-                cf.get();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            }
-        });
+
+        for (CompletableFuture completableFuture : insertions) {
+            completableFuture.get();
+        }
     }
 
     private GenericRecordJsonEncoder createParquetToJsonEncoder() {
