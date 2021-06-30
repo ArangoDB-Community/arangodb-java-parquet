@@ -9,7 +9,6 @@ import java.util.List;
 
 class ChunkedParquetReaderIterator<T> implements Iterator<List<T>> {
     ParquetReader<T> reader;
-    ArrayList<T> nextChunk;
     T nextVal;
     int chunkSize;
 
@@ -17,28 +16,24 @@ class ChunkedParquetReaderIterator<T> implements Iterator<List<T>> {
         this.reader = reader;
         this.nextVal = reader.read();
         this.chunkSize = chunkSize;
-        this.nextChunk = new ArrayList<>(chunkSize);
-        this.readNextChunk();
     }
 
     @Override
     public boolean hasNext() {
-        return this.nextChunk.size() > 0;
+        return this.nextVal != null;
     }
 
     @Override
     public List<T> next() {
-        List<T> toReturn = (List) nextChunk.clone();
         try {
-            this.readNextChunk();
-            return toReturn;
+            return this.readNextChunk();
         } catch (IOException e) {
             return null;
         }
     }
 
-    private void readNextChunk() throws IOException {
-        nextChunk.clear();
+    private List<T> readNextChunk() throws IOException {
+        List<T> nextChunk = new ArrayList<>(this.chunkSize);
         for (int i = 0; i < chunkSize; i++) {
             if (nextVal == null) {
                 break;
@@ -46,5 +41,6 @@ class ChunkedParquetReaderIterator<T> implements Iterator<List<T>> {
             nextChunk.add(nextVal);
             nextVal = reader.read();
         }
+        return nextChunk;
     }
 }
