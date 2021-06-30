@@ -2,6 +2,9 @@ package com.arangodb.parquet;
 
 import com.arangodb.ArangoCollection;
 import com.arangodb.async.ArangoCollectionAsync;
+import com.arangodb.entity.DocumentCreateEntity;
+import com.arangodb.entity.DocumentImportEntity;
+import com.arangodb.entity.MultiDocumentEntity;
 import com.arangodb.parquet.serde.GenericRecordJsonEncoder;
 import org.apache.avro.LogicalType;
 import org.apache.avro.generic.GenericRecord;
@@ -14,17 +17,19 @@ import org.apache.parquet.hadoop.util.HadoopInputFile;
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class ParquetArangoLoader {
     private Map<LogicalType, Function<Object, Object>> converters;
     private static final int DEFAULT_BATCH_SIZE = 1000;
+    private static final int MAX_PENDING_REQUESTS = 50;
 
     public ParquetArangoLoader() {
         converters = new HashMap<>();
@@ -132,29 +137,46 @@ public class ParquetArangoLoader {
         GenericRecordJsonEncoder encoder = this.createParquetToJsonEncoder();
 
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(parquetPath, new Configuration())).build();
-        GenericRecord nextRecord;
+        ChunkedParquetReaderIterator<GenericRecord> iter_reader = new ChunkedParquetReaderIterator(reader, batchSize);
 
-        ArrayList<String> batch = new ArrayList<>(batchSize);
-        List<CompletableFuture> insertions = new ArrayList<>();
+        Stream<List<GenericRecord>> chunks = StreamSupport.stream(
+                Spliterators.spliteratorUnknownSize(iter_reader, Spliterator.ORDERED), false);
 
-        while ((nextRecord = reader.read()) != null) {
-            batch.add(encoder.serialize(nextRecord));
+        AtomicLong pendingInsertionsCount = new AtomicLong();
 
-            if (batch.size() == batchSize) {
-                insertions.add(collection.insertDocuments((List) batch.clone()));
-                batch.clear();
-            }
-        }
+        List<CompletableFuture<MultiDocumentEntity<DocumentCreateEntity<String>>>> insertions = chunks
+                .map(chunk -> {
+                    // add backpressure
+                    while (pendingInsertionsCount.get() > MAX_PENDING_REQUESTS) {
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
 
-        if (batch.size() > 0) {
-            insertions.add(collection.insertDocuments((List) batch.clone()));
-            batch.clear();
-        }
+                    // Encode documents in chunk
+                    List<String> encoded_chunk = chunk.stream().map(encoder::serialize).collect(Collectors.toList());
+
+                    pendingInsertionsCount.incrementAndGet();
+                    return collection.insertDocuments(encoded_chunk)
+                            .thenApply(it -> {
+                                pendingInsertionsCount.decrementAndGet();
+                                return it;
+                            });
+                })
+                .collect(Collectors.toList());
+
         reader.close();
-
-        for (CompletableFuture f : insertions) {
-            f.get();
-        }
+        insertions.forEach(cf -> {
+            try {
+                cf.get();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private GenericRecordJsonEncoder createParquetToJsonEncoder() {
