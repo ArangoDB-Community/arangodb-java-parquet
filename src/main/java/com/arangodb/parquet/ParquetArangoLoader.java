@@ -238,7 +238,7 @@ public class ParquetArangoLoader {
 
         AtomicLong pendingInsertionsCount = new AtomicLong();
 
-        List<CompletableFuture<MultiDocumentEntity<DocumentCreateEntity<String>>>> insertions = chunks
+        List<CompletableFuture> insertions = chunks
                 .map(chunk -> {
                     // add backpressure
                     while (pendingInsertionsCount.get() > maxParallelBatches) {
